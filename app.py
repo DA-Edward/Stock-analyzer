@@ -14,18 +14,33 @@ end = st.date_input("End Date", datetime.today())
 
 if tickers:
     st.info("Loading data...")
-    data = yf.download(tickers, start=start, end=end)['Adj Close']
-    normalized = data / data.iloc[0]
+    try:
+        raw_data = yf.download(tickers, start=start, end=end)
 
-    st.subheader("📊 Normalized Chart (Start = 1.0)")
-    fig, ax = plt.subplots(figsize=(14, 6))
-    for t in normalized.columns:
-        ax.plot(normalized.index, normalized[t], label=t)
-    ax.set_ylabel("Normalized Price")
-    ax.legend()
-    ax.grid(True)
-    st.pyplot(fig)
+        if raw_data.empty:
+            st.warning("⚠️ No data returned. Try different tickers or date range.")
+            st.stop()
 
-    st.subheader("🔢 Return Summary")
-    returns = ((normalized.iloc[-1] - 1) * 100).sort_values(ascending=False).round(2)
-    st.dataframe(returns.rename("Return (%)"))
+        if 'Adj Close' not in raw_data.columns:
+            st.error("⚠️ 'Adj Close' not found in downloaded data. Some tickers may be invalid.")
+            st.dataframe(raw_data.head())
+            st.stop()
+
+        data = raw_data['Adj Close']
+        normalized = data / data.iloc[0]
+
+        st.subheader("📊 Normalized Chart (Start = 1.0)")
+        fig, ax = plt.subplots(figsize=(14, 6))
+        for t in normalized.columns:
+            ax.plot(normalized.index, normalized[t], label=t)
+        ax.set_ylabel("Normalized Price")
+        ax.legend()
+        ax.grid(True)
+        st.pyplot(fig)
+
+        st.subheader("🔢 Return Summary")
+        returns = ((normalized.iloc[-1] - 1) * 100).sort_values(ascending=False).round(2)
+        st.dataframe(returns.rename("Return (%)"))
+
+    except Exception as e:
+        st.error(f"❌ Error loading or processing data: {e}")
